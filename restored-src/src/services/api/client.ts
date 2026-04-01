@@ -150,6 +150,40 @@ export async function getAnthropicClient({
       fetch: resolvedFetch,
     }),
   }
+
+  // ── Ollama Provider ──────────────────────────────────────────────────────
+  // When CLAUDE_CODE_USE_OLLAMA is set, we create a standard Anthropic client
+  // but inject a custom fetch that intercepts all Messages API calls and
+  // routes them through the Ollama translation proxy.
+  //
+  // Supports:
+  //   - Local Ollama (default http://localhost:11434)
+  //   - Ollama Cloud (set OLLAMA_BASE_URL + OLLAMA_API_KEY)
+  //   - Any model: llama3.2, qwen2.5-coder, mistral, deepseek-r1, etc.
+  //
+  // The rest of the codebase has no idea it's talking to Ollama.
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_OLLAMA)) {
+    const { createOllamaFetchOverride } = await import('./ollama/ollamaClient.js')
+    const ollamaFetch = createOllamaFetchOverride()
+
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+    logForDebugging(
+      `[API:ollama] Using Ollama provider at ${ollamaBaseUrl}, model=${model || 'default'}`,
+    )
+
+    const ollamaConfig: ConstructorParameters<typeof Anthropic>[0] = {
+      ...ARGS,
+      // Use a dummy API key — the Ollama fetch override handles auth
+      apiKey: 'ollama-local',
+      // Point at Ollama but the fetch override will intercept before it matters
+      baseURL: ollamaBaseUrl,
+      fetch: ollamaFetch,
+      ...(isDebugToStdErr() && { logger: createStderrLogger() }),
+    }
+
+    return new Anthropic(ollamaConfig)
+  }
+
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) {
     const { AnthropicBedrock } = await import('@anthropic-ai/bedrock-sdk')
     // Use region override for small fast model if specified

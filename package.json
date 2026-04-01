@@ -1,0 +1,51 @@
+{
+  "name": "claude-code-sourcemap",
+  "version": "1.1.0",
+  "description": "Run Claude Code CLI with any local LLM via Ollama — no Anthropic API key needed. Full tool calling and streaming support.",
+  "main": "extract-sources.js",
+  "scripts": {
+    "test": "node test-ollama.mjs --dry-run",
+    "test:live": "node test-ollama.mjs",
+    "test:ollama": "OLLAMA_MODEL=qwen2.5:7b node test-ollama.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SteOnChain/claude-code-sourcemap.git"
+  },
+  "keywords": [
+    "ollama",
+    "claude-code",
+    "local-llm",
+    "anthropic",
+    "ai-coding",
+    "sourcemap",
+    "llama",
+    "qwen",
+    "deepseek",
+    "mistral",
+    "tool-calling",
+    "function-calling",
+    "openai-compatible",
+    "translation-proxy",
+    "agentic-coding",
+    "cli",
+    "ai-assistant",
+    "self-hosted",
+    "ollama-cloud",
+    "open-source-ai"
+  ],
+  "author": "SteOnChain",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SteOnChain/claude-code-sourcemap/issues"
+  },
+  "homepage": "https://github.com/SteOnChain/claude-code-sourcemap#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.27.4",
+    "typescript": "^6.0.2"
+  }
+}

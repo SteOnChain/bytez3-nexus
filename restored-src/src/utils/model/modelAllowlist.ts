@@ -98,6 +98,14 @@ function familyHasSpecificEntries(
  * 3. Full model IDs ("claude-opus-4-5-20251101") — exact match only
  */
 export function isModelAllowed(model: string): boolean {
+  // Ollama provider allows any model — users specify whatever they've pulled locally
+  try {
+    const { getAPIProvider } = require('./providers.js') as typeof import('./providers.js')
+    if (getAPIProvider() === 'ollama') return true
+  } catch {
+    // providers module may not be available during early init
+  }
+
   const settings = getSettings_DEPRECATED() || {}
   const { availableModels } = settings
   if (!availableModels) {
