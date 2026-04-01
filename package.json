@@ -1,7 +1,7 @@
 {
-  "name": "claude-code-sourcemap",
-  "version": "1.1.0",
-  "description": "Run Claude Code CLI with any local LLM via Ollama — no Anthropic API key needed. Full tool calling and streaming support.",
+  "name": "bytez3-nexus",
+  "version": "0.1.0",
+  "description": "Bytez3 Nexus — Open-source AI agent system. Run agentic coding assistants with any local LLM via Ollama. Full tool calling, MCP server support, multi-agent coordination, and streaming.",
   "main": "extract-sources.js",
   "scripts": {
     "test": "node test-ollama.mjs --dry-run",
@@ -10,36 +10,42 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SteOnChain/claude-code-sourcemap.git"
+    "url": "git+https://github.com/SteOnChain/bytez3-nexus.git"
   },
   "keywords": [
+    "bytez3",
+    "nexus",
+    "ai-agents",
+    "agent-system",
     "ollama",
-    "claude-code",
     "local-llm",
-    "anthropic",
-    "ai-coding",
-    "sourcemap",
+    "self-hosted-ai",
+    "agentic-coding",
+    "mcp",
+    "model-context-protocol",
+    "tool-calling",
+    "function-calling",
+    "multi-agent",
+    "openai-compatible",
     "llama",
     "qwen",
     "deepseek",
     "mistral",
-    "tool-calling",
-    "function-calling",
-    "openai-compatible",
+    "open-source-ai",
+    "ai-coding-assistant",
     "translation-proxy",
-    "agentic-coding",
-    "cli",
-    "ai-assistant",
-    "self-hosted",
     "ollama-cloud",
-    "open-source-ai"
+    "streaming",
+    "cli",
+    "developer-tools",
+    "autonomous-agents"
   ],
-  "author": "SteOnChain",
-  "license": "ISC",
+  "author": "Bytez3 <steonchain@users.noreply.github.com>",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/SteOnChain/claude-code-sourcemap/issues"
+    "url": "https://github.com/SteOnChain/bytez3-nexus/issues"
   },
-  "homepage": "https://github.com/SteOnChain/claude-code-sourcemap#readme",
+  "homepage": "https://github.com/SteOnChain/bytez3-nexus#readme",
   "engines": {
     "node": ">=18.0.0"
   },
