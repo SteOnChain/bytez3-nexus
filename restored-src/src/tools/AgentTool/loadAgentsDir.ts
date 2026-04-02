@@ -1,7 +1,8 @@
 const feature = (name: any) => process.env[name] === '1';
 
 import memoize from 'lodash-es/memoize.js'
-import { basename } from 'path'
+import { basename, join } from 'path'
+import fs from 'fs'
 import type { SettingSource } from 'src/utils/settings/constants.js'
 import { z } from 'zod/v4'
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
@@ -372,6 +373,21 @@ export const getAgentDefinitionsWithOverrides = memoize(
         }
       }
 
+      // Merge overrides from .claude/agent-config.json
+      try {
+        const configPath = join(cwd, '.claude', 'agent-config.json')
+        if (fs.existsSync(configPath)) {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+          for (const agent of allAgentsList) {
+            if (config[agent.agentType]?.model) {
+              agent.model = config[agent.agentType].model
+            }
+          }
+        }
+      } catch (e) {
+        // ignore errors if file doesn't exist or is malformed
+      }
+
       return {
         activeAgents,
         allAgents: allAgentsList,
@@ -724,13 +740,7 @@ export function parseAgentFromMarkdown(
         ? { mcpServers }
         : {}),
       ...(hooks !== undefined ? { hooks } : {}),
-      getSystemPrompt: () => {
-        if (isAutoMemoryEnabled() && memory) {
-          const memoryPrompt = loadAgentMemoryPrompt(agentType, memory)
-          return systemPrompt + '\n\n' + memoryPrompt
-        }
-        return systemPrompt
-      },
+      getSystemPrompt: () => systemPrompt,
       source,
       filename,
       ...(color && typeof color === 'string' && AGENT_COLORS.includes(color)

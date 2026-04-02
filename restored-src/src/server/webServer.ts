@@ -181,6 +181,30 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
     }
   });
 
+  app.post('/api/agents/:id/model', (req, res) => {
+    try {
+      const agentId = req.params.id;
+      const { model } = req.body;
+      const configPath = path.join(process.cwd(), '.claude', 'agent-config.json');
+      
+      const dir = path.dirname(configPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      
+      let config: any = {};
+      if (fs.existsSync(configPath)) {
+        config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      }
+      
+      if (!config[agentId]) config[agentId] = {};
+      config[agentId].model = model;
+      
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      res.json({ success: true, model });
+    } catch (error) {
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   app.get('/api/source', (req, res) => {
     try {
       const relPath = (req.query.path as string) || '';
@@ -618,7 +642,10 @@ function getIndexHTML(): string {
     </div>
     
     <div class="nav-section" id="agents-sidebar">
-      <div class="nav-title">Agents <span id="agent-count" style="opacity:0.5"></span></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <div class="nav-title" style="margin:0;">Agents <span id="agent-count" style="opacity:0.5"></span></div>
+        <button id="spawn-btn" style="background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-main);padding:2px 8px;font-size:0.75rem;cursor:pointer;">+ Spawn</button>
+      </div>
       <div id="agents-list">
         <div class="agent-item active">
           <div class="agent-status"></div>
@@ -658,6 +685,39 @@ function getIndexHTML(): string {
       </div>
     </div>
   </main>
+
+  <!-- Modal Backdrop and Container -->
+  <div class="modal-backdrop" id="modal-backdrop" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;">
+    <!-- Configure Agent Modal -->
+    <div class="modal-card" id="config-modal" style="display:none;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;width:400px;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+      <h3 style="margin-bottom:1rem;font-size:1.1rem;font-weight:600;">Configure <span id="config-agent-name" style="color:var(--accent);"></span></h3>
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block;margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-muted);">Model Override</label>
+        <input type="text" id="config-model-input" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem;color:var(--text-main);font-family:inherit;font-size:0.95rem;outline:none;" placeholder="e.g. claude-3-5-sonnet-20241022">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:12px;">
+        <button id="config-cancel-btn" style="background:transparent;border:1px solid var(--border);color:var(--text-main);padding:0.5rem 1rem;border-radius:var(--radius-sm);cursor:pointer;font-size:0.9rem;transition:all 0.2s;">Cancel</button>
+        <button id="config-save-btn" style="background:var(--accent);border:none;color:white;padding:0.5rem 1rem;border-radius:var(--radius-sm);cursor:pointer;font-size:0.9rem;font-weight:500;transition:all 0.2s;">Save</button>
+      </div>
+    </div>
+    <!-- Spawn Subagent Modal -->
+    <div class="modal-card" id="spawn-modal" style="display:none;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;width:500px;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+      <h3 style="margin-bottom:1rem;font-size:1.1rem;font-weight:600;">Spawn Subagent</h3>
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-muted);">Select Agent</label>
+        <select id="spawn-agent-select" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem;color:var(--text-main);font-family:inherit;font-size:0.95rem;outline:none;cursor:pointer;">
+        </select>
+      </div>
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block;margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-muted);">Task Description</label>
+        <textarea id="spawn-task-input" rows="3" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem;color:var(--text-main);font-family:inherit;font-size:0.95rem;outline:none;resize:vertical;" placeholder="Describe what the agent should do..."></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:12px;">
+        <button id="spawn-cancel-btn" style="background:transparent;border:1px solid var(--border);color:var(--text-main);padding:0.5rem 1rem;border-radius:var(--radius-sm);cursor:pointer;font-size:0.9rem;transition:all 0.2s;">Cancel</button>
+        <button id="spawn-submit-btn" style="background:#10b981;border:none;color:white;padding:0.5rem 1rem;border-radius:var(--radius-sm);cursor:pointer;font-size:0.9rem;font-weight:500;transition:all 0.2s;">Spawn</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const msgsContainer = document.getElementById('messages-container');
@@ -711,7 +771,7 @@ function getIndexHTML(): string {
           const sourceTag = '<span class="agent-source ' + (src === 'userSettings' || src === 'projectSettings' ? 'user' : src) + '">' + src.replace('Settings','') + '</span>';
           html += '<div class="agent-item ' + activeClass + '" title="' + (agent.whenToUse || '').replace(/"/g, "&quot;") + '">' +
             '<div class="agent-status ' + statusClass + '"></div>' +
-            '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:0.9rem">' + agent.name + '</span>' + sourceTag + '</div>' +
+            '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;justify-content:space-between;width:100%"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:0.9rem">' + agent.name + '</span>' + sourceTag + '</div><button class="config-agent-btn" onclick="openConfigModal(\\'' + agent.id + '\\', \\'' + (agent.model || '') + '\\')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px;" title="Configure Agent Model">⚙</button></div>' +
             '<small style="color:var(--text-muted);font-size:0.72rem">' + statusText + (agent.model ? ' · ' + agent.model : '') + '</small></div></div>';
         }
       }
@@ -755,7 +815,8 @@ function getIndexHTML(): string {
       try {
         const res = await fetch('/api/agents');
         const data = await res.json();
-        renderAgents(data.agents || [], data.active || []);
+        window._allAgentsData = data.agents || [];
+        renderAgents(window._allAgentsData, data.active || []);
       } catch(e) { console.warn('Failed to fetch agents:', e); }
     }
     fetchAgents();
@@ -851,6 +912,74 @@ function getIndexHTML(): string {
         e.preventDefault();
         sendMessage();
       }
+    });
+
+    // Modal logic
+    const backdrop = document.getElementById('modal-backdrop');
+    const configModal = document.getElementById('config-modal');
+    const spawnModal = document.getElementById('spawn-modal');
+
+    // Config:
+    let currentConfigAgentId = '';
+    window.openConfigModal = function(id, model) {
+      if (typeof event !== 'undefined' && event) event.stopPropagation();
+      currentConfigAgentId = id;
+      document.getElementById('config-agent-name').textContent = id;
+      document.getElementById('config-model-input').value = model || '';
+      backdrop.style.display = 'flex';
+      configModal.style.display = 'block';
+      spawnModal.style.display = 'none';
+    };
+    document.getElementById('config-cancel-btn').addEventListener('click', () => {
+      backdrop.style.display = 'none';
+    });
+    document.getElementById('config-save-btn').addEventListener('click', async () => {
+      const model = document.getElementById('config-model-input').value.trim();
+      try {
+        await fetch('/api/agents/' + currentConfigAgentId + '/model', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model })
+        });
+        backdrop.style.display = 'none';
+        fetchAgents();
+      } catch(e) { alert('Failed to save config'); }
+    });
+
+    // Spawn:
+    const spawnBtn = document.getElementById('spawn-btn');
+    if (spawnBtn) {
+      spawnBtn.addEventListener('click', () => {
+        const select = document.getElementById('spawn-agent-select');
+        select.innerHTML = '';
+        if (window._allAgentsData) {
+          window._allAgentsData.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = a.name + (a.model ? ' ('+a.model+')' : '');
+            select.appendChild(opt);
+          });
+        }
+        document.getElementById('spawn-task-input').value = '';
+        backdrop.style.display = 'flex';
+        configModal.style.display = 'none';
+        spawnModal.style.display = 'block';
+      });
+    }
+    document.getElementById('spawn-cancel-btn').addEventListener('click', () => {
+      backdrop.style.display = 'none';
+    });
+    document.getElementById('spawn-submit-btn').addEventListener('click', () => {
+      const agentId = document.getElementById('spawn-agent-select').value;
+      const task = document.getElementById('spawn-task-input').value.trim();
+      if (!task) return;
+      // Synthesize a prompt for the user/system to spawn it
+      const msg = 'Please spawn the agent \\'' + agentId + '\\' to do the following task: ' + task;
+      appendUserMessage(msg);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ text: msg }));
+      }
+      backdrop.style.display = 'none';
     });
 
   </script>

@@ -44,6 +44,8 @@ Unlike cloud-locked alternatives, Nexus gives you:
 
 ### 🤖 AI Agent System
 - **Multi-agent coordination** — orchestrate multiple AI agents working in parallel
+- **Recursive subagent spawning** — agents can spawn their own nested subagents autonomously for complex, multi-tiered task delegation
+- **Agent memory (Brain)** — centralized persistent memory context (e.g., project-scoped brains) attached automatically to every active subagent
 - **30+ built-in tools** — file editing, bash execution, grep, git, web search, and more
 - **Tool calling** — full function calling with structured input/output schemas
 - **Streaming** — real-time token streaming for responsive interactions

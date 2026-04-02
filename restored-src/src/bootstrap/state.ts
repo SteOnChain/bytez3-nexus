@@ -844,14 +844,30 @@ export function getInitialMainLoopModel(): ModelSetting {
   return STATE.initialMainLoopModel
 }
 
+function syncProviderFromModel(model: ModelSetting | undefined) {
+  if (model && typeof model === 'string') {
+    if (model.startsWith('ollama/')) {
+      process.env.CLAUDE_CODE_USE_OLLAMA = '1'
+    } else if (model.startsWith('bedrock/')) {
+      process.env.CLAUDE_CODE_USE_BEDROCK = '1'
+    } else if (model.startsWith('vertex/')) {
+      process.env.CLAUDE_CODE_USE_VERTEX = '1'
+    } else if (model.startsWith('foundry/')) {
+      process.env.CLAUDE_CODE_USE_FOUNDRY = '1'
+    }
+  }
+}
+
 export function setMainLoopModelOverride(
   model: ModelSetting | undefined,
 ): void {
   STATE.mainLoopModelOverride = model
+  syncProviderFromModel(model)
 }
 
 export function setInitialMainLoopModel(model: ModelSetting): void {
   STATE.initialMainLoopModel = model
+  syncProviderFromModel(model)
 }
 
 export function getSdkBetas(): string[] | undefined {
