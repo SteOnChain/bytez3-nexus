@@ -257,13 +257,13 @@ bytez3-nexus/
 - [x] **Tool calling** — full function calling translation
 - [x] **Streaming** — real-time SSE translation
 - [x] **MCP support** — Model Context Protocol compatibility
-- [ ] **Multi-model routing** — route different tasks to different models
-- [ ] **Agent memory** — persistent context across sessions
-- [ ] **Custom agent definitions** — YAML-based agent configuration
-- [ ] **Web UI** — browser-based agent dashboard
-- [ ] **Plugin marketplace** — community-built extensions
-- [ ] **Voice mode** — voice-driven agent interaction
-- [ ] **Team agents** — collaborative multi-agent workflows
+- [x] **Multi-model routing** — route different tasks to different models
+- [x] **Agent memory** — persistent context across sessions
+- [x] **Custom agent definitions** — Markdown/YAML-based agent configuration
+- [x] **Web UI** — browser-based agent dashboard (port 3000)
+- [ ] **Plugin marketplace** — community-built extensions (framework ready)
+- [ ] **Voice mode** — voice-driven agent interaction (requires Whisper/TTS integration)
+- [x] **Team agents** — collaborative multi-agent workflows
 
 ---
 
@@ -271,17 +271,48 @@ bytez3-nexus/
 
 Contributions are welcome! Whether it's bug fixes, new features, documentation, or ideas — open an issue or submit a PR.
 
+> **Branch Protection:** The `main` branch is protected. All changes require a Pull Request with at least **1 approving review** before merging. Direct pushes to `main` are blocked.
+
+### Contribution Workflow
+
 ```bash
-# Fork the repo
+# 1. Fork the repo on GitHub, then clone your fork
 git clone https://github.com/YOUR_USERNAME/bytez3-nexus.git
 cd bytez3-nexus
+
+# 2. Install dependencies
+cd restored-src
 npm install
 
-# Run tests
-npm test
+# 3. Create a feature branch
+git checkout -b feat/your-feature-name
 
-# Make your changes and submit a PR
+# 4. Set up your environment
+cp .env.example .env
+# Edit .env with your Ollama settings:
+#   CLAUDE_CODE_USE_OLLAMA=1
+#   ANTHROPIC_MODEL=qwen2.5-coder:7b
+
+# 5. Start the Web UI for testing
+npx tsx --env-file=.env src/server/webServer.ts
+# Open http://localhost:3000
+
+# 6. Make your changes, commit, and push
+git add -A
+git commit -m "feat: describe your change"
+git push origin feat/your-feature-name
+
+# 7. Open a Pull Request on GitHub
+#    → Base: main ← Compare: feat/your-feature-name
+#    → Request review from @SteOnChain
 ```
+
+### PR Guidelines
+
+- **One feature per PR** — keep changes focused and reviewable
+- **Test your changes** — verify in the Web UI before submitting
+- **Follow conventional commits** — `feat:`, `fix:`, `docs:`, `refactor:`
+- **Don't commit** `.env` files or `node_modules/`
 
 ---
 
