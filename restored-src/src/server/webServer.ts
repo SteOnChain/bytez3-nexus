@@ -155,6 +155,32 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
     }
   });
 
+  // Agent definitions endpoint — returns all known agents + their status
+  app.get('/api/agents', (_req, res) => {
+    try {
+      if (!context) {
+        return res.json({ agents: [], active: [] });
+      }
+      const appState = context.getAppState();
+      const defs = appState.agentDefinitions || { allAgents: [], activeAgents: [] };
+      const allAgents = (defs.allAgents || []).map((a: any) => ({
+        id: a.agentType,
+        name: a.agentType,
+        source: a.source || 'unknown',
+        color: a.color || 'purple',
+        model: a.model || process.env.ANTHROPIC_MODEL || 'default',
+        whenToUse: a.whenToUse || '',
+        tools: a.tools || [],
+        background: a.background || false,
+        memory: a.memory || null,
+      }));
+      const activeIds = (defs.activeAgents || []).map((a: any) => a.agentType || a.id);
+      res.json({ agents: allAgents, active: activeIds });
+    } catch (error) {
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   app.get('/api/source', (req, res) => {
     try {
       const relPath = (req.query.path as string) || '';
@@ -227,7 +253,58 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
     console.log(`  ➜ http://localhost:${port}\n`);
   });
 
-  const wss = new WebSocketServer({ server, path: '/chat' });
+  const wss = new WebSocketServer({ noServer: true });
+  const wssRelay = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (request, socket, head) => {
+    const pathname = request.url?.split('?')[0];
+    if (pathname === '/chat') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } else if (pathname === '/browser-relay') {
+      wssRelay.handleUpgrade(request, socket, head, (ws) => {
+        wssRelay.emit('connection', ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+
+  // Global relay state
+  const relayContext = {
+    activeSocket: null as WebSocket | null,
+    pendingRequests: new Map<string, {resolve: (v: any)=>void, reject: (err: any)=>void}>()
+  };
+
+  (global as any).__browserRelayContext = relayContext;
+
+  wssRelay.on('connection', (ws) => {
+    console.log('[Browser Relay] Extension connected');
+    relayContext.activeSocket = ws as any;
+    
+    ws.on('message', (msg) => {
+       try {
+         const data = JSON.parse(msg.toString());
+         if (data.id && relayContext.pendingRequests.has(data.id)) {
+           const promiseControls = relayContext.pendingRequests.get(data.id)!;
+           if (data.error) {
+             promiseControls.reject(new Error(data.error));
+           } else {
+             promiseControls.resolve(data);
+           }
+           relayContext.pendingRequests.delete(data.id);
+         }
+       } catch (e) {
+         console.error('[Browser Relay] Error parsing message', e);
+       }
+    });
+
+    ws.on('close', () => {
+       console.log('[Browser Relay] Extension disconnected');
+       if (relayContext.activeSocket === ws) relayContext.activeSocket = null;
+    });
+  });
   
   // Basic session context
   let readFileCache: FileStateCache = createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE);
@@ -239,6 +316,20 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
     const abortController = new AbortController();
 
     ws.send(JSON.stringify({ type: 'message', role: 'agent', content: '> Bytez3 Core Nexus AI integrated.\\n' }));
+    // Send initial agent list to populate sidebar
+    if (context) {
+      try {
+        const appState = context.getAppState();
+        const defs = appState.agentDefinitions || { allAgents: [], activeAgents: [] };
+        const allAgents = (defs.allAgents || []).map((a: any) => ({
+          id: a.agentType, name: a.agentType, source: a.source || 'unknown',
+          color: a.color || 'purple', model: a.model || process.env.ANTHROPIC_MODEL || 'default',
+          whenToUse: a.whenToUse || '', background: a.background || false,
+        }));
+        const activeIds = (defs.activeAgents || []).map((a: any) => a.agentType || a.id);
+        ws.send(JSON.stringify({ type: 'agents', agents: allAgents, active: activeIds }));
+      } catch {}
+    }
 
     ws.on('message', async (msg) => {
       let text = '';
@@ -398,10 +489,19 @@ function getIndexHTML(): string {
       border: 1px solid rgba(139, 92, 246, 0.2);
     }
     .agent-status {
-      width: 8px; height: 8px; border-radius: 50%;
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
       background: #10b981; box-shadow: 0 0 10px #10b981;
     }
     .agent-status.offline { background: #64748b; box-shadow: none; }
+    .agent-status.spawned { background: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,0.5); }
+    .agent-source {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 2px 6px; border-radius: 4px; font-weight: 600;
+    }
+    .agent-source.built-in { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .agent-source.user { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .agent-source.plugin { background: rgba(16,185,129,0.15); color: #34d399; }
+    .agent-source.spawned { background: rgba(245,158,11,0.15); color: #fbbf24; }
 
     /* Main chat area */
     .chat-container {
@@ -517,15 +617,17 @@ function getIndexHTML(): string {
       <div class="brand-text">Nexus API</div>
     </div>
     
-    <div class="nav-section">
-      <div class="nav-title">Active Agents</div>
-      <div class="agent-item active">
-        <div class="agent-status"></div>
-        <div><span>Core Nexus</span><br><small style="color:var(--text-muted);font-size:0.75rem">Connected</small></div>
+    <div class="nav-section" id="agents-sidebar">
+      <div class="nav-title">Agents <span id="agent-count" style="opacity:0.5"></span></div>
+      <div id="agents-list">
+        <div class="agent-item active">
+          <div class="agent-status"></div>
+          <div><span>Core Nexus</span><br><small style="color:var(--text-muted);font-size:0.75rem">Loading...</small></div>
+        </div>
       </div>
-      <div class="agent-item">
-        <div class="agent-status offline"></div>
-        <div><span>Code Reviewer</span><br><small style="color:var(--text-muted);font-size:0.75rem">Offline</small></div>
+      <div class="nav-title" style="margin-top:1.5rem">Spawned Agents</div>
+      <div id="spawned-agents-list">
+        <div style="font-size:0.8rem;color:var(--text-muted);padding:8px 12px;">No sub-agents yet</div>
       </div>
     </div>
   </aside>
@@ -533,8 +635,8 @@ function getIndexHTML(): string {
   <main class="chat-container">
     <header class="chat-header">
       <h3 style="font-weight: 600; font-size: 1rem;">Core Nexus Session</h3>
-      <div style="font-size: 0.8rem; color: var(--text-muted); padding: 4px 10px; background: var(--bg-input); border-radius: 20px;">
-        Model: Claude-3.5-Sonnet
+      <div style="font-size: 0.8rem; color: var(--text-muted); padding: 4px 10px; background: var(--bg-input); border-radius: 20px;" id="header-model">
+        Model: ${process.env.ANTHROPIC_MODEL || 'default'}
       </div>
     </header>
 
@@ -561,12 +663,102 @@ function getIndexHTML(): string {
     const msgsContainer = document.getElementById('messages-container');
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
+    const agentsList = document.getElementById('agents-list');
+    const spawnedList = document.getElementById('spawned-agents-list');
+    const agentCount = document.getElementById('agent-count');
     
+    // Track spawned sub-agents from tool_use events
+    const spawnedAgents = new Map();
+
     // Auto-resize textarea
     input.addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = (this.scrollHeight) + 'px';
     });
+
+    // Render agent sidebar from data
+    function renderAgents(agents, activeIds) {
+      if (!agents || agents.length === 0) {
+        agentsList.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);padding:8px 12px;">No agents loaded</div>';
+        agentCount.textContent = '(0)';
+        return;
+      }
+
+      // Group by source
+      const groups = { 'built-in': [], 'userSettings': [], 'projectSettings': [], 'plugin': [], 'other': [] };
+      agents.forEach(a => {
+        const key = groups[a.source] ? a.source : 'other';
+        groups[key].push(a);
+      });
+
+      let html = '';
+      const sourceLabels = {
+        'built-in': 'Core Agents',
+        'userSettings': 'Custom Agents',
+        'projectSettings': 'Project Agents',
+        'plugin': 'Plugin Agents',
+        'other': 'Other'
+      };
+
+      for (const [src, list] of Object.entries(groups)) {
+        if (list.length === 0) continue;
+        html += '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:8px 12px 4px;opacity:0.7">' + sourceLabels[src] + '</div>';
+        for (const agent of list) {
+          const isActive = activeIds.includes(agent.id);
+          const statusClass = isActive ? '' : 'offline';
+          const activeClass = isActive ? 'active' : '';
+          const statusText = isActive ? 'Active' : 'Available';
+          const sourceTag = '<span class="agent-source ' + (src === 'userSettings' || src === 'projectSettings' ? 'user' : src) + '">' + src.replace('Settings','') + '</span>';
+          html += '<div class="agent-item ' + activeClass + '" title="' + (agent.whenToUse || '').replace(/"/g, "&quot;") + '">' +
+            '<div class="agent-status ' + statusClass + '"></div>' +
+            '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:0.9rem">' + agent.name + '</span>' + sourceTag + '</div>' +
+            '<small style="color:var(--text-muted);font-size:0.72rem">' + statusText + (agent.model ? ' · ' + agent.model : '') + '</small></div></div>';
+        }
+      }
+
+      agentsList.innerHTML = html;
+      agentCount.textContent = '(' + agents.length + ')';
+    }
+
+    // Track sub-agents spawned during chat
+    function trackSpawnedAgent(name) {
+      if (spawnedAgents.has(name)) return;
+      spawnedAgents.set(name, { name, spawnedAt: Date.now(), status: 'running' });
+      renderSpawnedAgents();
+    }
+
+    function completeSpawnedAgent(name) {
+      const a = spawnedAgents.get(name);
+      if (a) { a.status = 'done'; renderSpawnedAgents(); }
+    }
+
+    function renderSpawnedAgents() {
+      if (spawnedAgents.size === 0) {
+        spawnedList.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);padding:8px 12px;">No sub-agents yet</div>';
+        return;
+      }
+      let html = '';
+      for (const [name, info] of spawnedAgents) {
+        const statusClass = info.status === 'running' ? 'spawned' : '';
+        const statusText = info.status === 'running' ? 'Running' : 'Complete';
+        html += '<div class="agent-item">' +
+          '<div class="agent-status ' + statusClass + '"></div>' +
+          '<div style="flex:1;min-width:0"><span style="font-size:0.9rem">' + name + '</span>' +
+          '<span class="agent-source spawned" style="margin-left:6px">sub-agent</span>' +
+          '<br><small style="color:var(--text-muted);font-size:0.72rem">' + statusText + '</small></div></div>';
+      }
+      spawnedList.innerHTML = html;
+    }
+
+    // Fetch initial agents via REST
+    async function fetchAgents() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        renderAgents(data.agents || [], data.active || []);
+      } catch(e) { console.warn('Failed to fetch agents:', e); }
+    }
+    fetchAgents();
 
     let ws;
     
@@ -575,7 +767,19 @@ function getIndexHTML(): string {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          appendAgentText(data.content || data.text || JSON.stringify(data));
+          // Handle agent list updates
+          if (data.type === 'agents') {
+            renderAgents(data.agents || [], data.active || []);
+            return;
+          }
+          const content = data.content || data.text || JSON.stringify(data);
+          // Detect sub-agent spawning from tool_use messages
+          const agentMatch = content.match(/\[running (\w+)\]/);
+          if (agentMatch && agentMatch[1] === 'Agent') {
+            const nameMatch = content.match(/Agent[:\s]+([\w-]+)/i);
+            if (nameMatch) trackSpawnedAgent(nameMatch[1]);
+          }
+          appendAgentText(content);
         } catch(e) {
           appendAgentText(event.data);
         }
@@ -586,6 +790,9 @@ function getIndexHTML(): string {
       };
     }
     connect();
+
+    // Refresh agent list periodically (picks up newly created agents)
+    setInterval(fetchAgents, 15000);
 
     // The current agent message bubble being streamed to
     let currentAgentBubble = null;
@@ -602,7 +809,6 @@ function getIndexHTML(): string {
       }
       
       agentBuffer += text;
-      // Using marked.js if available, else plain text
       if (typeof marked !== 'undefined') {
         currentAgentBubble.innerHTML = marked.parse(agentBuffer);
       } else {
@@ -610,7 +816,6 @@ function getIndexHTML(): string {
       }
       msgsContainer.scrollTop = msgsContainer.scrollHeight;
       
-      // Debounce ending the bubble so next output goes to the same one if fast
       clearTimeout(currentAgentBubble.timeout);
       currentAgentBubble.timeout = setTimeout(() => {
         currentAgentBubble = null;
@@ -636,6 +841,8 @@ function getIndexHTML(): string {
       }
       input.value = '';
       input.style.height = 'auto';
+      // Refresh agents shortly after sending (picks up any new spawns)
+      setTimeout(fetchAgents, 2000);
     }
 
     sendBtn.addEventListener('click', sendMessage);
@@ -664,7 +871,7 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith
           }
           const headlessStore = createStore(headlessInitialState, onChangeAppState)
 
-          const port = parseInt(process.argv[2] || process.env.PORT || '3000', 10);
+          const port = parseInt(process.argv[2] || process.env.PORT || '3333', 10);
           startWebServer(port, {
             getAppState: () => headlessStore.getState(),
             setAppState: (f: any) => headlessStore.setState(f),

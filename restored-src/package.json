@@ -7,9 +7,10 @@
   "scripts": {
     "build": "node build.mjs",
     "serve": "node --loader tsx/esm src/server/webServer.ts",
-    "dev": "tsx src/server/webServer.ts",
+    "dev": "PORT=3333 tsx src/server/webServer.ts",
+    "dev:webui": "PORT=3333 tsx src/server/webServer.ts",
     "typecheck": "tsc --noEmit 2>&1 | head -100",
-    "start:ollama": "CLAUDE_CODE_USE_OLLAMA=1 OLLAMA_API_KEY=7a705ff09e65427eb9f014a065774444.100u8VPNGUxELpiOxqMn0alu ANTHROPIC_MODEL=qwen3-coder tsx src/server/webServer.ts"
+    "start:ollama": "CLAUDE_CODE_USE_OLLAMA=1 OLLAMA_API_KEY=7a705ff09e65427eb9f014a065774444.100u8VPNGUxELpiOxqMn0alu ANTHROPIC_MODEL=qwen3-coder PORT=3333 tsx src/server/webServer.ts"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "^0.0.46",

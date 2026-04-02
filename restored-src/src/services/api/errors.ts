@@ -874,9 +874,11 @@ export function getAssistantMessageFromError(
       })
     }
 
+    const isFirstParty = getAPIProvider() === 'firstParty'
+
     return createAssistantAPIErrorMessage({
       error: 'authentication_failed',
-      content: getIsNonInteractiveSession()
+      content: getIsNonInteractiveSession() || !isFirstParty
         ? `Failed to authenticate. ${API_ERROR_MESSAGE_PREFIX}: ${error.message}`
         : `Please run /login · ${API_ERROR_MESSAGE_PREFIX}: ${error.message}`,
     })
