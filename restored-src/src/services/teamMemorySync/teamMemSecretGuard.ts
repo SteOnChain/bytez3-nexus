@@ -1,4 +1,6 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 /**
  * Check if a file write/edit to a team memory path contains secrets.

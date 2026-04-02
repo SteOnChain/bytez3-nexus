@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { redownloadUserSettings } from '../../services/settingsSync/index.js'
 import type { LocalCommandCall } from '../../types/command.js'

@@ -1,5 +1,8 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
-import { feature } from 'bun:bundle'
+
 import { readFile, stat } from 'fs/promises'
 import { dirname } from 'path'
 import {

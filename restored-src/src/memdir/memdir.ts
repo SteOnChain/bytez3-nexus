@@ -1,4 +1,7 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 import { join } from 'path'
 import { getFsImplementation } from '../utils/fsOperations.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from './paths.js'

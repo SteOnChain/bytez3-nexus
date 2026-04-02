@@ -106,11 +106,16 @@ export class ResponseStreamTranslator {
           model: this.model,
           stop_reason: null,
           stop_sequence: null,
+          container: null,
           usage: {
             input_tokens: this.inputTokens,
             output_tokens: 0,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
+            server_tool_use: null,
+            service_tier: null,
+            cache_creation: null,
+            inference_geo: null,
           },
         },
       })
@@ -247,9 +252,14 @@ export class ResponseStreamTranslator {
           delta: {
             stop_reason: stopReason,
             stop_sequence: null,
+            container: null,
           },
           usage: {
             output_tokens: this.outputTokens,
+            input_tokens: this.inputTokens,
+            cache_creation_input_tokens: null,
+            cache_read_input_tokens: null,
+            server_tool_use: null,
           },
         })
 
@@ -286,8 +296,14 @@ export class ResponseStreamTranslator {
         }
         events.push({
           type: 'message_delta',
-          delta: { stop_reason: 'end_turn', stop_sequence: null },
-          usage: { output_tokens: this.outputTokens },
+          delta: { stop_reason: 'end_turn', stop_sequence: null, container: null },
+          usage: {
+            output_tokens: this.outputTokens,
+            input_tokens: this.inputTokens,
+            cache_creation_input_tokens: null,
+            cache_read_input_tokens: null,
+            server_tool_use: null,
+          },
         })
         events.push({ type: 'message_stop' })
         return events
@@ -366,11 +382,16 @@ export class ResponseStreamTranslator {
       model,
       stop_reason: stopReason,
       stop_sequence: null,
+      container: null,
       usage: {
         input_tokens: usage?.prompt_tokens || 0,
         output_tokens: usage?.completion_tokens || 0,
         cache_creation_input_tokens: 0,
         cache_read_input_tokens: 0,
+        server_tool_use: null,
+        service_tier: null,
+        cache_creation: null,
+        inference_geo: null,
       },
     }
   }

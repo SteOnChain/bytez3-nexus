@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+
 import { stat } from 'fs/promises'
 import { getClientType } from '../bootstrap/state.js'
 import {

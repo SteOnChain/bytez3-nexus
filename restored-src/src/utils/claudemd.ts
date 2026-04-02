@@ -1,3 +1,6 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 /**
  * Files are loaded in the following order:
  *
@@ -25,7 +28,6 @@
  * - Non-existent files are silently ignored
  */
 
-import { feature } from 'bun:bundle'
 import ignore from 'ignore'
 import memoize from 'lodash-es/memoize.js'
 import { Lexer } from 'marked'

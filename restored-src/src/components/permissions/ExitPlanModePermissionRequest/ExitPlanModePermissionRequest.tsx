@@ -1,4 +1,7 @@
-import { feature } from 'bun:bundle';
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+;
 import type { UUID } from 'crypto';
 import figures from 'figures';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';

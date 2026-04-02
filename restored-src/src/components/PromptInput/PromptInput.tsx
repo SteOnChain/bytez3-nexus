@@ -1,5 +1,6 @@
-import { feature } from 'bun:bundle';
-import chalk from 'chalk';
+const feature = (name: any) => process.env[name] === '1';
+;
+import * as chalk from "chalk";
 import * as path from 'path';
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';

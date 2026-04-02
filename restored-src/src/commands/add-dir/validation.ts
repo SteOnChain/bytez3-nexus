@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from "chalk"
 import { stat } from 'fs/promises'
 import { dirname, resolve } from 'path'
 import type { ToolPermissionContext } from '../../Tool.js'

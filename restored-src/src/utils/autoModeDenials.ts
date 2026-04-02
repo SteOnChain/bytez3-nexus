@@ -1,9 +1,8 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * Tracks commands recently denied by the auto mode classifier.
  * Populated from useCanUseTool.ts, read from RecentDenialsTab.tsx in /permissions.
  */
-
-import { feature } from 'bun:bundle'
 
 export type AutoModeDenial = {
   toolName: string

@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+
 import type { Command } from '../commands.js'
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js'
 import { isEnvTruthy } from '../utils/envUtils.js'

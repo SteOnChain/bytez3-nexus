@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import type { PendingClassifierCheck } from '../../../types/permissions.js'
 import { isAgentSwarmsEnabled } from '../../../utils/agentSwarmsEnabled.js'

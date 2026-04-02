@@ -1,3 +1,6 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 /**
  * Extracts durable memories from the current session transcript
  * and writes them to the auto-memory directory (~/.claude/projects/<path>/memory/).
@@ -13,7 +16,6 @@
  * initExtractMemories() in beforeEach to get a fresh closure.
  */
 
-import { feature } from 'bun:bundle'
 import { basename } from 'path'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'

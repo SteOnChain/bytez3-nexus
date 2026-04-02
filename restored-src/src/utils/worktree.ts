@@ -1,5 +1,6 @@
-import { feature } from 'bun:bundle'
-import chalk from 'chalk'
+const feature = (name: any) => process.env[name] === '1';
+
+import * as chalk from "chalk"
 import { spawnSync } from 'child_process'
 import {
   copyFile,

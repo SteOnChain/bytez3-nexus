@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+
 import mergeWith from 'lodash-es/mergeWith.js'
 import { dirname, join, resolve } from 'path'
 import { z } from 'zod/v4'

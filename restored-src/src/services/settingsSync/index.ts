@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * Settings Sync Service
  *
@@ -9,7 +10,6 @@
  * Backend API: anthropic/anthropic#218817
  */
 
-import { feature } from 'bun:bundle'
 import axios from 'axios'
 import { mkdir, readFile, stat, writeFile } from 'fs/promises'
 import pickBy from 'lodash-es/pickBy.js'

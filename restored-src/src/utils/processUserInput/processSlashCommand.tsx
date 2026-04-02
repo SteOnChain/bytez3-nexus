@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle';
+const feature = (name: any) => process.env[name] === '1';
+;
 import type { ContentBlockParam, TextBlockParam } from '@anthropic-ai/sdk/resources';
 import { randomUUID } from 'crypto';
 import { setPromptId } from 'src/bootstrap/state.js';

@@ -1,5 +1,8 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 import { c as _c } from "react/compiler-runtime";
-import { feature } from 'bun:bundle';
+;
 import * as React from 'react';
 import { useSyncExternalStore } from 'react';
 import { Box, Text } from '../ink.js';

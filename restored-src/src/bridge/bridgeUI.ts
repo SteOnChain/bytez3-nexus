@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from "chalk"
 import { toString as qrToString } from 'qrcode'
 import {
   BRIDGE_FAILED_INDICATOR,

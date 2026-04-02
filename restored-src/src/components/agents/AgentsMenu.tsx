@@ -1,5 +1,5 @@
 import { c as _c } from "react/compiler-runtime";
-import chalk from 'chalk';
+import * as chalk from "chalk";
 import * as React from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type { SettingSource } from 'src/utils/settings/constants.js';

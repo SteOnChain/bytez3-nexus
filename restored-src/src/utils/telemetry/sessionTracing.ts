@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * Session Tracing for Claude Code using OpenTelemetry (BETA)
  *
@@ -10,7 +11,6 @@
  * - Configure OTEL_TRACES_EXPORTER (console, otlp, etc.)
  */
 
-import { feature } from 'bun:bundle'
 import { context as otelContext, type Span, trace } from '@opentelemetry/api'
 import { AsyncLocalStorage } from 'async_hooks'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'

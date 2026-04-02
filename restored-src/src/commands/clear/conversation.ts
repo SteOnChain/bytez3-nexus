@@ -1,8 +1,11 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 /**
  * Conversation clearing utility.
  * This module has heavier dependencies and should be lazy-loaded when possible.
  */
-import { feature } from 'bun:bundle'
+
 import { randomUUID, type UUID } from 'crypto'
 import {
   getLastMainRequestId,

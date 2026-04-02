@@ -1,7 +1,9 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 /* eslint-disable custom-rules/no-process-exit */
 
-import { feature } from 'bun:bundle'
-import chalk from 'chalk'
+import * as chalk from "chalk"
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,

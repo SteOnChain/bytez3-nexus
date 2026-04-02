@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle';
+const feature = (name: any) => process.env[name] === '1';
+;
 import * as React from 'react';
 import { useMemo } from 'react';
 import { Box } from 'src/ink.js';

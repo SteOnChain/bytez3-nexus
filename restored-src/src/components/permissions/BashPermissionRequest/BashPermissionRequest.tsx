@@ -1,5 +1,6 @@
+const feature = (name: any) => process.env[name] === '1';
 import { c as _c } from "react/compiler-runtime";
-import { feature } from 'bun:bundle';
+;
 import figures from 'figures';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useTheme } from '../../../ink.js';

@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * Download functionality for native installer
  *
@@ -6,7 +7,6 @@
  * - GCS bucket
  */
 
-import { feature } from 'bun:bundle'
 import axios from 'axios'
 import { createHash } from 'crypto'
 import { chmod, writeFile } from 'fs/promises'

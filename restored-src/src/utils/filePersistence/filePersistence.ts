@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * File persistence orchestrator
  *
@@ -7,7 +8,6 @@
  * - 1P/Cloud mode: Query Files API listDirectory for file IDs (rclone handles sync)
  */
 
-import { feature } from 'bun:bundle'
 import { join, relative } from 'path'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,

@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+
 import { logEvent } from '../../services/analytics/index.js'
 import { logForDebugging } from '../debug.js'
 import {

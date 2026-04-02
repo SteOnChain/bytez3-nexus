@@ -1,4 +1,4 @@
-import chalk, { Chalk } from 'chalk'
+import chalk, { type Chalk } from 'chalk'
 import { env } from './env.js'
 
 export type Theme = {

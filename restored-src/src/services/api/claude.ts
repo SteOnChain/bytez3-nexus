@@ -1,3 +1,6 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 import type {
   BetaContentBlock,
   BetaContentBlockParam,
@@ -106,7 +109,6 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
   ? (require('../../utils/permissions/autoModeState.js') as typeof import('../../utils/permissions/autoModeState.js'))
   : null
 
-import { feature } from 'bun:bundle'
 import type { ClientOptions } from '@anthropic-ai/sdk'
 import {
   APIConnectionTimeoutError,
@@ -2995,29 +2997,29 @@ export function accumulateUsage(
   messageUsage: Readonly<NonNullableUsage>,
 ): NonNullableUsage {
   return {
-    input_tokens: totalUsage.input_tokens + messageUsage.input_tokens,
+    input_tokens: (totalUsage.input_tokens || 0) + (messageUsage.input_tokens || 0),
     cache_creation_input_tokens:
-      totalUsage.cache_creation_input_tokens +
-      messageUsage.cache_creation_input_tokens,
+      (totalUsage.cache_creation_input_tokens || 0) +
+      (messageUsage.cache_creation_input_tokens || 0),
     cache_read_input_tokens:
-      totalUsage.cache_read_input_tokens + messageUsage.cache_read_input_tokens,
-    output_tokens: totalUsage.output_tokens + messageUsage.output_tokens,
+      (totalUsage.cache_read_input_tokens || 0) + (messageUsage.cache_read_input_tokens || 0),
+    output_tokens: (totalUsage.output_tokens || 0) + (messageUsage.output_tokens || 0),
     server_tool_use: {
       web_search_requests:
-        totalUsage.server_tool_use.web_search_requests +
-        messageUsage.server_tool_use.web_search_requests,
+        (totalUsage.server_tool_use?.web_search_requests || 0) +
+        (messageUsage.server_tool_use?.web_search_requests || 0),
       web_fetch_requests:
-        totalUsage.server_tool_use.web_fetch_requests +
-        messageUsage.server_tool_use.web_fetch_requests,
+        (totalUsage.server_tool_use?.web_fetch_requests || 0) +
+        (messageUsage.server_tool_use?.web_fetch_requests || 0),
     },
-    service_tier: messageUsage.service_tier, // Use the most recent service tier
+    service_tier: messageUsage.service_tier ?? totalUsage.service_tier, // Use the most recent service tier
     cache_creation: {
       ephemeral_1h_input_tokens:
-        totalUsage.cache_creation.ephemeral_1h_input_tokens +
-        messageUsage.cache_creation.ephemeral_1h_input_tokens,
+        (totalUsage.cache_creation?.ephemeral_1h_input_tokens || 0) +
+        (messageUsage.cache_creation?.ephemeral_1h_input_tokens || 0),
       ephemeral_5m_input_tokens:
-        totalUsage.cache_creation.ephemeral_5m_input_tokens +
-        messageUsage.cache_creation.ephemeral_5m_input_tokens,
+        (totalUsage.cache_creation?.ephemeral_5m_input_tokens || 0) +
+        (messageUsage.cache_creation?.ephemeral_5m_input_tokens || 0),
     },
     // See comment in updateUsage — field is not on NonNullableUsage to keep
     // the string out of external builds.

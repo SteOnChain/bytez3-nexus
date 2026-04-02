@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from "chalk"
 import type { DailyActivity } from './stats.js'
 import { toDateString } from './statsCache.js'
 

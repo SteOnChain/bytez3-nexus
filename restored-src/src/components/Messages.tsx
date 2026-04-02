@@ -1,6 +1,9 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 import { c as _c } from "react/compiler-runtime";
-import { feature } from 'bun:bundle';
-import chalk from 'chalk';
+;
+import * as chalk from "chalk";
 import type { UUID } from 'crypto';
 import type { RefObject } from 'react';
 import * as React from 'react';

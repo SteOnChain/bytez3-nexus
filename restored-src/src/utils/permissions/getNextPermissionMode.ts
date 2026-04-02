@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle'
+const feature = (name: any) => process.env[name] === '1';
+
 import type { ToolPermissionContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
 import type { PermissionMode } from './PermissionMode.js'
@@ -70,7 +71,6 @@ export function getNextPermissionMode(
     case 'dontAsk':
       // Not exposed in UI cycle yet, but return default if somehow reached
       return 'default'
-
 
     default:
       // Covers auto (when TRANSCRIPT_CLASSIFIER is enabled) and any future modes — always fall back to default

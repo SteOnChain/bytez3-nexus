@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle';
+const feature = (name: any) => process.env[name] === '1';
+;
 import { appendFileSync } from 'fs';
 import React from 'react';
 import { logEvent } from 'src/services/analytics/index.js';

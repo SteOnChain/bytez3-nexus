@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 /**
  * Lazy accessor for proper-lockfile.
  *

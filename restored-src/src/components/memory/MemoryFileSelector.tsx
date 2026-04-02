@@ -1,6 +1,9 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 import { c as _c } from "react/compiler-runtime";
-import { feature } from 'bun:bundle';
-import chalk from 'chalk';
+;
+import * as chalk from "chalk";
 import { mkdir } from 'fs/promises';
 import { join } from 'path';
 import * as React from 'react';

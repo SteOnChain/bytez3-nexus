@@ -1,5 +1,5 @@
 import { c as _c } from "react/compiler-runtime";
-import chalk from 'chalk';
+import * as chalk from "chalk";
 import type { UUID } from 'crypto';
 import * as React from 'react';
 import { getSessionId } from '../../bootstrap/state.js';

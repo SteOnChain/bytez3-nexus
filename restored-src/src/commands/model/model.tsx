@@ -1,5 +1,5 @@
 import { c as _c } from "react/compiler-runtime";
-import chalk from 'chalk';
+import * as chalk from "chalk";
 import * as React from 'react';
 import type { CommandResultDisplay } from '../../commands.js';
 import { ModelPicker } from '../../components/ModelPicker.js';

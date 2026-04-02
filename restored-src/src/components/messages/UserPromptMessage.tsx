@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle';
+const feature = (name: any) => process.env[name] === '1';
+;
 import type { TextBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
 import React, { useContext, useMemo } from 'react';
 import { getKairosActive, getUserMsgOptIn } from '../../bootstrap/state.js';

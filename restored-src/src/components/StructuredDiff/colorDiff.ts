@@ -1,9 +1,6 @@
-import {
-  ColorDiff,
-  ColorFile,
-  getSyntaxTheme as nativeGetSyntaxTheme,
-  type SyntaxTheme,
-} from 'color-diff-napi'
+import * as colorDiffNapi from 'color-diff-napi'
+const { ColorDiff, ColorFile, getSyntaxTheme: nativeGetSyntaxTheme } = colorDiffNapi;
+export type SyntaxTheme = any;
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 
 export type ColorModuleUnavailableReason = 'env'

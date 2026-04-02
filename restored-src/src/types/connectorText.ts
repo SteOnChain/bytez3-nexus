@@ -1,0 +1,1 @@
+export const isConnectorTextBlock = (block: any) => false;

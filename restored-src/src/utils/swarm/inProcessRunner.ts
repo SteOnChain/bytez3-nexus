@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * In-process teammate runner
  *
@@ -9,7 +10,6 @@
  * - Cleanup on completion or abort
  */
 
-import { feature } from 'bun:bundle'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { getSystemPrompt } from '../../constants/prompts.js'
 import { TEAMMATE_MESSAGE_TAG } from '../../constants/xml.js'

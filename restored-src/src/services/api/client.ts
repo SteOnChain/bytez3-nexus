@@ -166,7 +166,8 @@ export async function getAnthropicClient({
     const { createOllamaFetchOverride } = await import('./ollama/ollamaClient.js')
     const ollamaFetch = createOllamaFetchOverride()
 
-    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+    const { getOllamaBaseUrl } = await import('../../utils/model/providers.js')
+    const ollamaBaseUrl = getOllamaBaseUrl()
     logForDebugging(
       `[API:ollama] Using Ollama provider at ${ollamaBaseUrl}, model=${model || 'default'}`,
     )

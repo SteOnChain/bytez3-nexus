@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 import { c as _c } from "react/compiler-runtime";
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import React, { useMemo } from 'react';
@@ -25,7 +26,7 @@ import { TeammateMessageContent } from './UserTeammateMessage.js';
 import { isShutdownApproved } from '../../utils/teammateMailbox.js';
 import { CtrlOToExpand } from '../CtrlOToExpand.js';
 import { FilePathLink } from '../FilePathLink.js';
-import { feature } from 'bun:bundle';
+;
 import { useSelectedMessageBg } from '../messageActions.js';
 type Props = {
   addMargin: boolean;

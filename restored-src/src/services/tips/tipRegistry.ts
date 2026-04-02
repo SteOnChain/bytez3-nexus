@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import * as chalk from "chalk"
 import { logForDebugging } from 'src/utils/debug.js'
 import { fileHistoryEnabled } from 'src/utils/fileHistory.js'
 import {

@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 // React hook for hold-to-talk voice input using Anthropic voice_stream STT.
 //
 // Hold the keybinding to record; release to stop and submit.  Auto-repeat

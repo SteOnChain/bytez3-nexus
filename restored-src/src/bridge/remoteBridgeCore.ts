@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 /**
  * Env-less Remote Control bridge core.
@@ -28,7 +29,6 @@
  * REPL-only — daemon/print stay on env-based.
  */
 
-import { feature } from 'bun:bundle'
 import axios from 'axios'
 import {
   createV2ReplTransport,

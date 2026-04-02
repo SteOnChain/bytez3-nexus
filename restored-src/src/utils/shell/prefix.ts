@@ -7,7 +7,7 @@
  * aspects (examples, pre-checks) are configurable.
  */
 
-import chalk from 'chalk'
+import * as chalk from "chalk"
 import type { QuerySource } from '../../constants/querySource.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import {

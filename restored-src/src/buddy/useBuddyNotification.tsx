@@ -1,5 +1,6 @@
+const feature = (name: any) => process.env[name] === '1';
 import { c as _c } from "react/compiler-runtime";
-import { feature } from 'bun:bundle';
+;
 import React, { useEffect } from 'react';
 import { useNotifications } from '../context/notifications.js';
 import { Text } from '../ink.js';

@@ -1,3 +1,6 @@
+const feature = (name: any) => process.env[name] === '1';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 /**
  * Shared event metadata enrichment for analytics systems
@@ -39,7 +42,6 @@ import {
   getTeamName,
   isTeammate,
 } from '../../utils/teammate.js'
-import { feature } from 'bun:bundle'
 
 /**
  * Marker type for verifying analytics metadata doesn't contain sensitive data
@@ -741,7 +743,6 @@ export async function getEventMetadata(
 
   return metadata
 }
-
 
 /**
  * Core event metadata for 1P event logging (snake_case format).

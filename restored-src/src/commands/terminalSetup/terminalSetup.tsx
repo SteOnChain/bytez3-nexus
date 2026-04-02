@@ -1,4 +1,4 @@
-import chalk from 'chalk';
+import * as chalk from "chalk";
 import { randomBytes } from 'crypto';
 import { copyFile, mkdir, readFile, writeFile } from 'fs/promises';
 import { homedir, platform } from 'os';

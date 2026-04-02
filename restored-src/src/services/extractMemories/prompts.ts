@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * Prompt templates for the background memory extraction agent.
  *
@@ -9,7 +10,6 @@
  * overlap the system prompt's harmlessly.
  */
 
-import { feature } from 'bun:bundle'
 import {
   MEMORY_FRONTMATTER_EXAMPLE,
   TYPES_SECTION_COMBINED,

@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * Upload BriefTool attachments to private_api so web viewers can preview them.
  *
@@ -12,7 +13,6 @@
  * isImage}, so local-terminal and same-machine-desktop render unaffected.
  */
 
-import { feature } from 'bun:bundle'
 import axios from 'axios'
 import { randomUUID } from 'crypto'
 import { readFile } from 'fs/promises'

@@ -1,4 +1,5 @@
-import { feature } from 'bun:bundle';
+const feature = (name: any) => process.env[name] === '1';
+;
 import { spawnSync } from 'child_process';
 import sample from 'lodash-es/sample.js';
 import * as React from 'react';

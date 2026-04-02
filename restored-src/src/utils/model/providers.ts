@@ -17,11 +17,37 @@ export function getAPIProvider(): APIProvider {
 
 /**
  * Get the Ollama base URL from environment or default to localhost.
- * Supports both local Ollama (http://localhost:11434) and Ollama Cloud.
+ * Supports both local Ollama (http://localhost:11434) and Ollama Cloud (https://ollama.com).
  * Set OLLAMA_BASE_URL for custom endpoints.
+ *
+ * When OLLAMA_API_KEY is set without OLLAMA_BASE_URL, defaults to https://ollama.com
+ * (the official Ollama Cloud endpoint per docs.ollama.com/cloud).
  */
 export function getOllamaBaseUrl(): string {
-  return process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
+  if (process.env.OLLAMA_BASE_URL) {
+    return process.env.OLLAMA_BASE_URL;
+  }
+  if (process.env.OLLAMA_API_KEY && process.env.OLLAMA_API_KEY.trim() !== '') {
+    return 'https://ollama.com';
+  }
+  return 'http://localhost:11434';
+}
+
+/**
+ * Detect if we're using Ollama Cloud vs a local instance.
+ *
+ * Ollama Cloud uses the native /api/chat endpoint, while local Ollama
+ * also exposes an OpenAI-compatible /v1/chat/completions endpoint.
+ * The cloud endpoint does NOT support /v1/chat/completions.
+ */
+export function isOllamaCloud(): boolean {
+  const baseUrl = getOllamaBaseUrl();
+  try {
+    const host = new URL(baseUrl).host;
+    return host === 'ollama.com' || host.endsWith('.ollama.com');
+  } catch {
+    return false;
+  }
 }
 
 export function getAPIProviderForStatsig(): AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {

@@ -1,3 +1,4 @@
+const feature = (name: any) => process.env[name] === '1';
 /**
  * Team Memory File Watcher
  *
@@ -7,7 +8,6 @@
  * fs.watch so first-time writes to a fresh repo get picked up.
  */
 
-import { feature } from 'bun:bundle'
 import { type FSWatcher, watch } from 'fs'
 import { mkdir, stat } from 'fs/promises'
 import { join } from 'path'

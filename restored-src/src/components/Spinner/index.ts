@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 export { FlashingChar } from './FlashingChar.js'
 export { GlimmerMessage } from './GlimmerMessage.js'
 export { ShimmerChar } from './ShimmerChar.js'
