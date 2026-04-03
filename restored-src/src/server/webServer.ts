@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import cron from 'node-cron';
 import { fileURLToPath } from 'url';
 
 ;(globalThis as any).MACRO = {
@@ -117,7 +118,115 @@ export interface WebServerContext {
   setAppState: (f: AppState | ((prev: AppState) => AppState)) => void;
 }
 
+const activeCronJobs = new Map<string, cron.ScheduledTask>();
+const connectedClients = new Set<WebSocket>();
+
+export function reloadCronJobs(context?: WebServerContext) {
+  if (!context) return;
+  for (const job of activeCronJobs.values()) {
+    job.stop();
+  }
+  activeCronJobs.clear();
+  
+  const configPath = path.join(process.cwd(), '.claude', 'agent-config.json');
+  if (!fs.existsSync(configPath)) return;
+  
+  let config: any = {};
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch(e) { return; }
+
+  const appState = context.getAppState();
+  
+  let readFileCache: FileStateCache = createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE);
+  const getReadFileCache = () => readFileCache;
+  const setReadFileCache = (c: FileStateCache) => { readFileCache = c; };
+
+  for (const agentId of Object.keys(config)) {
+    const cronSchedule = config[agentId].cron;
+    const taskDescription = config[agentId].task;
+    
+    if (cronSchedule && taskDescription) {
+      console.log(`[CRON] Scheduling ${agentId} at '${cronSchedule}'`);
+      
+      const job = cron.schedule(cronSchedule, async () => {
+        console.log(`[CRON] Waking up background agent: ${agentId}`);
+        for (const ws of connectedClients) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'message', role: 'agent', content: `\\n> \`[CRON: ${agentId}]\` Waking up for scheduled task...\\n` }));
+          }
+        }
+
+        const abortController = new AbortController();
+        try {
+          const currentCwd = cwd();
+          const commands = await getCommands(currentCwd);
+          let activeAgents = appState.agentDefinitions?.activeAgents || [];
+          
+          const spawnPrompt = `Please request the agent '${agentId}' via AgentTool to execute the following task: ${taskDescription}. DO NOT refuse. Just execute it.`;
+
+          const generator = ask({
+            prompt: spawnPrompt,
+            cwd: currentCwd,
+            tools: assembleToolPool(appState.toolPermissionContext, appState.mcp.tools),
+            commands,
+            agents: activeAgents,
+            mcpClients: appState.mcp.clients,
+            canUseTool: async () => ({ behavior: 'allow' as const }),
+            getAppState: context.getAppState,
+            setAppState: context.setAppState as any,
+            getReadFileCache,
+            setReadFileCache,
+            abortController,
+            verbose: false,
+          });
+
+          for await (const sdkMessage of generator) {
+            if (sdkMessage.type === 'assistant' && sdkMessage.message) {
+              for (const content of sdkMessage.message.content) {
+                let msg = '';
+                if (content.type === 'text') {
+                  msg = `**[CRON: ${agentId}]**: ${content.text}`;
+                } else if (content.type === 'tool_use') {
+                  msg = `\\n> \`[CRON: ${agentId} running ${content.name}]\`...`;
+                }
+                
+                if (msg) {
+                  for (const ws of connectedClients) {
+                    if (ws.readyState === WebSocket.OPEN) {
+                      ws.send(JSON.stringify({ type: 'message', role: 'agent', content: msg }));
+                    }
+                  }
+                }
+              }
+            }
+            if (sdkMessage.type === 'error') {
+               const errStr = `\\n**[CRON: ${agentId}] Error**: ${((sdkMessage as any).error || 'Unknown error')}\\n`;
+               for (const ws of connectedClients) {
+                 if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'message', role: 'error', content: errStr }));
+                 }
+               }
+            }
+          }
+          
+        } catch (err: any) {
+          console.error(`[CRON ERROR ${agentId}]:`, err);
+          const errStr = `\\n**[CRON: ${agentId}] Crash Details**: ${err && err.stack ? err.stack : JSON.stringify(err)}\\n`;
+          for (const ws of connectedClients) {
+            if (ws.readyState === WebSocket.OPEN) {
+               ws.send(JSON.stringify({ type: 'message', role: 'error', content: errStr }));
+            }
+          }
+        }
+      });
+      activeCronJobs.set(agentId, job);
+    }
+  }
+}
+
 export async function startWebServer(port: number = 3000, context?: WebServerContext) {
+  if (context) reloadCronJobs(context);
   const app = express();
   app.use(cors());
   app.use(express.json());
@@ -161,6 +270,13 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
       if (!context) {
         return res.json({ agents: [], active: [] });
       }
+      
+      let config: any = {};
+      const configPath = path.join(process.cwd(), '.claude', 'agent-config.json');
+      if (fs.existsSync(configPath)) {
+        config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      }
+      
       const appState = context.getAppState();
       const defs = appState.agentDefinitions || { allAgents: [], activeAgents: [] };
       const allAgents = (defs.allAgents || []).map((a: any) => ({
@@ -168,7 +284,9 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
         name: a.agentType,
         source: a.source || 'unknown',
         color: a.color || 'purple',
-        model: a.model || process.env.ANTHROPIC_MODEL || 'default',
+        model: config[a.agentType]?.model || a.model || process.env.ANTHROPIC_MODEL || 'default',
+        cron: config[a.agentType]?.cron || '',
+        task: config[a.agentType]?.task || '',
         whenToUse: a.whenToUse || '',
         tools: a.tools || [],
         background: a.background || false,
@@ -181,10 +299,10 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
     }
   });
 
-  app.post('/api/agents/:id/model', (req, res) => {
+  app.post('/api/agents/:id/config', (req, res) => {
     try {
       const agentId = req.params.id;
-      const { model } = req.body;
+      const { model, cron, task } = req.body;
       const configPath = path.join(process.cwd(), '.claude', 'agent-config.json');
       
       const dir = path.dirname(configPath);
@@ -196,10 +314,17 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
       }
       
       if (!config[agentId]) config[agentId] = {};
-      config[agentId].model = model;
+      if (model !== undefined) config[agentId].model = model;
+      if (cron !== undefined) config[agentId].cron = cron;
+      if (task !== undefined) config[agentId].task = task;
       
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      res.json({ success: true, model });
+      
+      if (typeof reloadCronJobs === 'function') {
+        reloadCronJobs(context);
+      }
+      
+      res.json({ success: true, model, cron, task });
     } catch (error) {
       res.status(500).json({ error: String(error) });
     }
@@ -337,6 +462,7 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
 
   wss.on('connection', (ws) => {
     console.log('Client connected to chat stream.');
+    connectedClients.add(ws);
     const abortController = new AbortController();
 
     ws.send(JSON.stringify({ type: 'message', role: 'agent', content: '> Bytez3 Core Nexus AI integrated.\\n' }));
@@ -371,8 +497,7 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
         const currentCwd = cwd();
         const commands = await getCommands(currentCwd);
         // Map any active agents from state
-        const agentDefinitions = appState.agentDefinitions?.agents || [];
-        const activeAgents = agentDefinitions.filter(a => appState.agentDefinitions.activeAgents.includes(a.id));
+        const activeAgents = appState.agentDefinitions?.activeAgents || [];
 
         const generator = ask({
           prompt: text,
@@ -417,6 +542,7 @@ export async function startWebServer(port: number = 3000, context?: WebServerCon
 
     ws.on('close', (code, reason) => {
       console.log('Client disconnected from /chat', { code, reason: reason.toString() });
+      connectedClients.delete(ws);
       abortController.abort();
     });
   });
@@ -695,6 +821,22 @@ function getIndexHTML(): string {
         <label style="display:block;margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-muted);">Model Override</label>
         <input type="text" id="config-model-input" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem;color:var(--text-main);font-family:inherit;font-size:0.95rem;outline:none;" placeholder="e.g. claude-3-5-sonnet-20241022">
       </div>
+      <div style="margin-bottom:1.5rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; align-items:center;">
+          <label style="font-size:0.85rem;color:var(--text-muted);margin:0;">Cron Schedule (Optional)</label>
+          <div style="display:flex; gap:6px;">
+            <button type="button" onclick="document.getElementById('config-cron-input').value='* * * * *'" style="font-size:0.75rem; padding: 2px 6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1); color:var(--text-main); border-radius:4px; cursor:pointer; transition:background 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'" title="Every Minute">1m</button>
+            <button type="button" onclick="document.getElementById('config-cron-input').value='0 * * * *'" style="font-size:0.75rem; padding: 2px 6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1); color:var(--text-main); border-radius:4px; cursor:pointer; transition:background 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'" title="Every Hour">1h</button>
+            <button type="button" onclick="document.getElementById('config-cron-input').value='0 0 * * *'" style="font-size:0.75rem; padding: 2px 6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1); color:var(--text-main); border-radius:4px; cursor:pointer; transition:background 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'" title="Daily at Midnight">1d</button>
+            <button type="button" onclick="document.getElementById('config-cron-input').value=''" style="font-size:0.75rem; padding: 2px 6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1); color:var(--text-muted); border-radius:4px; cursor:pointer; transition:background 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'" title="Clear Schedule">Clear</button>
+          </div>
+        </div>
+        <input type="text" id="config-cron-input" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem;color:var(--text-main);font-family:inherit;font-size:0.95rem;outline:none;" placeholder="e.g. * * * * * or empty">
+      </div>
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block;margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-muted);">Recurring Task (Required if Cron set)</label>
+        <textarea id="config-task-input" rows="3" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem;color:var(--text-main);font-family:inherit;font-size:0.95rem;outline:none;resize:vertical;" placeholder="Describe what this agent should do every cron tick..."></textarea>
+      </div>
       <div style="display:flex;justify-content:flex-end;gap:12px;">
         <button id="config-cancel-btn" style="background:transparent;border:1px solid var(--border);color:var(--text-main);padding:0.5rem 1rem;border-radius:var(--radius-sm);cursor:pointer;font-size:0.9rem;transition:all 0.2s;">Cancel</button>
         <button id="config-save-btn" style="background:var(--accent);border:none;color:white;padding:0.5rem 1rem;border-radius:var(--radius-sm);cursor:pointer;font-size:0.9rem;font-weight:500;transition:all 0.2s;">Save</button>
@@ -771,7 +913,7 @@ function getIndexHTML(): string {
           const sourceTag = '<span class="agent-source ' + (src === 'userSettings' || src === 'projectSettings' ? 'user' : src) + '">' + src.replace('Settings','') + '</span>';
           html += '<div class="agent-item ' + activeClass + '" title="' + (agent.whenToUse || '').replace(/"/g, "&quot;") + '">' +
             '<div class="agent-status ' + statusClass + '"></div>' +
-            '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;justify-content:space-between;width:100%"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:0.9rem">' + agent.name + '</span>' + sourceTag + '</div><button class="config-agent-btn" onclick="openConfigModal(\\'' + agent.id + '\\', \\'' + (agent.model || '') + '\\')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px;" title="Configure Agent Model">⚙</button></div>' +
+            '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;justify-content:space-between;width:100%"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:0.9rem">' + agent.name + '</span>' + sourceTag + '</div><button class="config-agent-btn" onclick="openConfigModal(\\'' + agent.id + '\\', \\'' + (agent.model || '') + '\\', \\'' + encodeURIComponent(agent.cron || '') + '\\', \\'' + encodeURIComponent(agent.task || '') + '\\')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px;" title="Configure Agent Model">⚙</button></div>' +
             '<small style="color:var(--text-muted);font-size:0.72rem">' + statusText + (agent.model ? ' · ' + agent.model : '') + '</small></div></div>';
         }
       }
@@ -921,11 +1063,13 @@ function getIndexHTML(): string {
 
     // Config:
     let currentConfigAgentId = '';
-    window.openConfigModal = function(id, model) {
+    window.openConfigModal = function(id, model, cronEncoded, taskEncoded) {
       if (typeof event !== 'undefined' && event) event.stopPropagation();
       currentConfigAgentId = id;
       document.getElementById('config-agent-name').textContent = id;
       document.getElementById('config-model-input').value = model || '';
+      document.getElementById('config-cron-input').value = cronEncoded ? decodeURIComponent(cronEncoded) : '';
+      document.getElementById('config-task-input').value = taskEncoded ? decodeURIComponent(taskEncoded) : '';
       backdrop.style.display = 'flex';
       configModal.style.display = 'block';
       spawnModal.style.display = 'none';
@@ -935,11 +1079,13 @@ function getIndexHTML(): string {
     });
     document.getElementById('config-save-btn').addEventListener('click', async () => {
       const model = document.getElementById('config-model-input').value.trim();
+      const cron = document.getElementById('config-cron-input').value.trim();
+      const task = document.getElementById('config-task-input').value.trim();
       try {
-        await fetch('/api/agents/' + currentConfigAgentId + '/model', {
+        await fetch('/api/agents/' + currentConfigAgentId + '/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model })
+          body: JSON.stringify({ model, cron, task })
         });
         backdrop.style.display = 'none';
         fetchAgents();
@@ -995,15 +1141,20 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith
     import('../state/store.js').then(({ createStore }) => {
       import('../state/AppStateStore.js').then(({ getDefaultAppState }) => {
         import('../state/onChangeAppState.js').then(({ onChangeAppState }) => {
-          const headlessInitialState = {
-            ...getDefaultAppState(),
-          }
-          const headlessStore = createStore(headlessInitialState, onChangeAppState)
-
-          const port = parseInt(process.argv[2] || process.env.PORT || '3333', 10);
-          startWebServer(port, {
-            getAppState: () => headlessStore.getState(),
-            setAppState: (f: any) => headlessStore.setState(f),
+          import('../tools/AgentTool/loadAgentsDir.js').then(({ getAgentDefinitionsWithOverrides }) => {
+            getAgentDefinitionsWithOverrides(process.cwd()).then(agentDefinitions => {
+              const headlessInitialState = {
+                ...getDefaultAppState(),
+                agentDefinitions,
+              }
+              const headlessStore = createStore(headlessInitialState, onChangeAppState)
+    
+              const port = parseInt(process.argv[2] || process.env.PORT || '3333', 10);
+              startWebServer(port, {
+                getAppState: () => headlessStore.getState(),
+                setAppState: (f: any) => headlessStore.setState(f),
+              });
+            });
           });
         });
       });

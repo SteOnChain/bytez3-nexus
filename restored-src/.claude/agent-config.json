@@ -1,0 +1,6 @@
+{
+  "general-purpose": {
+    "cron": "*/1 * * * *",
+    "task": "Run a system resource check every minute: ps -aux | head -n 5"
+  }
+}
